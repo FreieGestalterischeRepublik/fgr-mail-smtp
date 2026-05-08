@@ -17,7 +17,7 @@ Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails über 
 
 ## Installation
 
-1. [Neueste Version herunterladen](https://github.com/FreieGestalterischeRepublik/fgr-mail-smtp/releases/latest)
+1. [Neueste Version herunterladen](https://github.com/FreieGestalterischeRepublik/fgr-mail-smtp/archive/refs/heads/main.zip)
 2. Im WordPress-Backend unter **Plugins → Installieren → Plugin hochladen** die ZIP-Datei hochladen
 3. Plugin aktivieren
 4. Unter **Einstellungen → FGR Mail SMTP** den Mailserver konfigurieren
