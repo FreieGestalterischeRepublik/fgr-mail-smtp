@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.2.2
+ * Version:      1.3.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -42,23 +42,30 @@ function fgr_smtp_decrypt( string $value ): string {
     return openssl_decrypt( $cipher, 'AES-256-CBC', $key, 0, $iv ) ?: '';
 }
 
-// Absenderadresse früh setzen, bevor WordPress "wordpress@localhost" verwendet
-add_filter( 'wp_mail_from', function ( $default ) {
-    $opt = get_option( 'fgr_smtp', [] );
-    if ( ! empty( $opt['from_email'] ) ) {
-        return $opt['from_email'];
-    }
-    // "wordpress@localhost" ist ungültig — Fallback auf Admin-E-Mail
-    return ( 'wordpress@localhost' === $default ) ? get_option( 'admin_email' ) : $default;
-} );
+// Hooks nur aktiv schalten wenn SMTP-Modus gewählt ist
+$fgr_smtp_mode = get_option( 'fgr_smtp', [] )['mailer_mode'] ?? 'smtp';
 
-add_filter( 'wp_mail_from_name', function ( $default ) {
-    $opt = get_option( 'fgr_smtp', [] );
-    return ! empty( $opt['from_name'] ) ? $opt['from_name'] : $default;
-} );
+if ( 'smtp' === $fgr_smtp_mode ) {
 
-// SMTP konfigurieren, wenn WordPress PHPMailer initialisiert
-add_action( 'phpmailer_init', 'fgr_smtp_configure_mailer' );
+    // Absenderadresse früh setzen, bevor WordPress "wordpress@localhost" verwendet
+    add_filter( 'wp_mail_from', function ( $default ) {
+        $opt = get_option( 'fgr_smtp', [] );
+        if ( ! empty( $opt['from_email'] ) ) {
+            return $opt['from_email'];
+        }
+        // "wordpress@localhost" ist ungültig — Fallback auf Admin-E-Mail
+        return ( 'wordpress@localhost' === $default ) ? get_option( 'admin_email' ) : $default;
+    } );
+
+    add_filter( 'wp_mail_from_name', function ( $default ) {
+        $opt = get_option( 'fgr_smtp', [] );
+        return ! empty( $opt['from_name'] ) ? $opt['from_name'] : $default;
+    } );
+
+    // SMTP konfigurieren, wenn WordPress PHPMailer initialisiert
+    add_action( 'phpmailer_init', 'fgr_smtp_configure_mailer' );
+
+}
 
 function fgr_smtp_configure_mailer( PHPMailer\PHPMailer\PHPMailer $mailer ) {
     $opt = get_option( 'fgr_smtp', [] );

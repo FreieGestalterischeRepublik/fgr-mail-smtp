@@ -27,6 +27,11 @@ class FGR_SMTP_Settings {
         }
         check_admin_referer( 'fgr_smtp_save', 'fgr_smtp_nonce' );
 
+        $mode = sanitize_key( $_POST['mailer_mode'] ?? 'smtp' );
+        if ( ! in_array( $mode, [ 'phpmailer', 'smtp' ], true ) ) {
+            $mode = 'smtp';
+        }
+
         $enc = sanitize_key( $_POST['encryption'] ?? 'tls' );
         if ( ! in_array( $enc, [ 'none', 'ssl', 'tls' ], true ) ) {
             $enc = 'tls';
@@ -39,13 +44,14 @@ class FGR_SMTP_Settings {
         $saved_pass      = ( '' !== $new_pass ) ? fgr_smtp_encrypt( $new_pass ) : ( $existing['password'] ?? '' );
 
         update_option( 'fgr_smtp', [
-            'host'       => sanitize_text_field( $_POST['host'] ?? '' ),
-            'port'       => absint( $_POST['port'] ?? 587 ),
-            'encryption' => $enc,
-            'username'   => sanitize_text_field( $_POST['username'] ?? '' ),
-            'password'   => $saved_pass,
-            'from_email' => sanitize_email( $_POST['from_email'] ?? '' ),
-            'from_name'  => sanitize_text_field( $_POST['from_name'] ?? '' ),
+            'mailer_mode' => $mode,
+            'host'        => sanitize_text_field( $_POST['host'] ?? '' ),
+            'port'        => absint( $_POST['port'] ?? 587 ),
+            'encryption'  => $enc,
+            'username'    => sanitize_text_field( $_POST['username'] ?? '' ),
+            'password'    => $saved_pass,
+            'from_email'  => sanitize_email( $_POST['from_email'] ?? '' ),
+            'from_name'   => sanitize_text_field( $_POST['from_name'] ?? '' ),
         ] );
 
         set_transient( 'fgr_smtp_notice', 'saved', 30 );
@@ -123,6 +129,7 @@ class FGR_SMTP_Settings {
 
         $opt  = get_option( 'fgr_smtp', [] );
         $enc  = $opt['encryption'] ?? 'tls';
+        $mode = $opt['mailer_mode'] ?? 'smtp';
         ?>
         <div class="wrap">
             <h1>FGR Mail SMTP</h1>
@@ -130,6 +137,27 @@ class FGR_SMTP_Settings {
 
             <form method="post">
                 <?php wp_nonce_field( 'fgr_smtp_save', 'fgr_smtp_nonce' ); ?>
+                <table class="form-table" role="presentation">
+
+                    <tr>
+                        <th scope="row">Versandmethode</th>
+                        <td>
+                            <fieldset>
+                                <label>
+                                    <input type="radio" name="mailer_mode" value="phpmailer" <?php checked( $mode, 'phpmailer' ); ?>>
+                                    Standard-Versand via PHP-Mailer
+                                </label><br>
+                                <label>
+                                    <input type="radio" name="mailer_mode" value="smtp" <?php checked( $mode, 'smtp' ); ?>>
+                                    SMTP-Server
+                                </label>
+                            </fieldset>
+                        </td>
+                    </tr>
+
+                </table>
+
+                <div id="fgr-smtp-fields" <?php echo 'phpmailer' === $mode ? 'style="display:none"' : ''; ?>>
                 <table class="form-table" role="presentation">
 
                     <tr>
@@ -208,6 +236,7 @@ class FGR_SMTP_Settings {
                     </tr>
 
                 </table>
+                </div><!-- #fgr-smtp-fields -->
 
                 <p class="submit">
                     <button type="submit" name="fgr_smtp_save" class="button button-primary">
@@ -241,13 +270,21 @@ class FGR_SMTP_Settings {
         </div>
         <script>
         ( function () {
-            const port  = document.getElementById( 'port' );
-            const radios = document.querySelectorAll( 'input[name="encryption"]' );
-            const defaults = { tls: 587, ssl: 465, none: 25 };
+            const port           = document.getElementById( 'port' );
+            const encRadios      = document.querySelectorAll( 'input[name="encryption"]' );
+            const modeRadios     = document.querySelectorAll( 'input[name="mailer_mode"]' );
+            const smtpFields     = document.getElementById( 'fgr-smtp-fields' );
+            const defaults       = { tls: 587, ssl: 465, none: 25 };
 
-            radios.forEach( function ( radio ) {
+            encRadios.forEach( function ( radio ) {
                 radio.addEventListener( 'change', function () {
                     port.value = defaults[ this.value ];
+                } );
+            } );
+
+            modeRadios.forEach( function ( radio ) {
+                radio.addEventListener( 'change', function () {
+                    smtpFields.style.display = ( this.value === 'smtp' ) ? '' : 'none';
                 } );
             } );
         } )();
