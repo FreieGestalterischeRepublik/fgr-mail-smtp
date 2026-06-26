@@ -194,6 +194,9 @@ class FGR_SMTP_Settings {
                                 <option value="ms365smtp">Microsoft 365 (SMTP AUTH)</option>
                             </select>
                             <p class="description">Füllt Host, Port und Verschlüsselung automatisch aus.</p>
+                            <div id="fgr-gmail-notice" style="display:none;margin-top:8px" class="notice notice-info inline">
+                                <p><strong>Hinweis:</strong> Gmail akzeptiert kein normales Passwort. Du brauchst ein <strong>App-Passwort</strong>: Google-Konto → Sicherheit → 2-Faktor-Authentifizierung aktivieren → App-Passwörter → neues Passwort erstellen. Dieses 16-stellige Passwort dann hier eintragen.</p>
+                            </div>
                             <div id="fgr-ms365smtp-notice" style="display:none;margin-top:8px" class="notice notice-warning inline">
                                 <p><strong>Hinweis:</strong> Microsoft stellt Basic Auth für SMTP (<code>smtp.office365.com</code>) im Dezember 2026 ab. Für eine zukunftssichere Lösung empfehlen wir stattdessen die Versandmethode <strong>Microsoft 365 (Graph API)</strong>.</p>
                             </div>
@@ -401,9 +404,11 @@ class FGR_SMTP_Settings {
             } );
 
             const ms365SmtpNotice = document.getElementById( 'fgr-ms365smtp-notice' );
+            const gmailNotice     = document.getElementById( 'fgr-gmail-notice' );
 
             preset.addEventListener( 'change', function () {
                 ms365SmtpNotice.style.display = ( this.value === 'ms365smtp' ) ? '' : 'none';
+                gmailNotice.style.display     = ( this.value === 'gmail' )     ? '' : 'none';
                 const p = presets[ this.value ];
                 if ( ! p ) return;
                 host.value = p.host;
