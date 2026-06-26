@@ -161,6 +161,21 @@ class FGR_SMTP_Settings {
                 <table class="form-table" role="presentation">
 
                     <tr>
+                        <th scope="row"><label for="smtp_preset">Anbieter-Vorlage</label></th>
+                        <td>
+                            <select id="smtp_preset">
+                                <option value="">– Vorlage auswählen –</option>
+                                <option value="fgr">FGR Mailserver</option>
+                                <option value="strato">Strato</option>
+                                <option value="ionos">IONOS</option>
+                                <option value="1und1">1&amp;1</option>
+                                <option value="hosteurope">HostEurope</option>
+                            </select>
+                            <p class="description">Füllt Host, Port und Verschlüsselung automatisch aus.</p>
+                        </td>
+                    </tr>
+
+                    <tr>
                         <th scope="row"><label for="host">SMTP-Host</label></th>
                         <td>
                             <input type="text" id="host" name="host" class="regular-text"
@@ -270,15 +285,25 @@ class FGR_SMTP_Settings {
         </div>
         <script>
         ( function () {
-            const port           = document.getElementById( 'port' );
-            const encRadios      = document.querySelectorAll( 'input[name="encryption"]' );
-            const modeRadios     = document.querySelectorAll( 'input[name="mailer_mode"]' );
-            const smtpFields     = document.getElementById( 'fgr-smtp-fields' );
-            const defaults       = { tls: 587, ssl: 465, none: 25 };
+            const port       = document.getElementById( 'port' );
+            const host       = document.getElementById( 'host' );
+            const preset     = document.getElementById( 'smtp_preset' );
+            const encRadios  = document.querySelectorAll( 'input[name="encryption"]' );
+            const modeRadios = document.querySelectorAll( 'input[name="mailer_mode"]' );
+            const smtpFields = document.getElementById( 'fgr-smtp-fields' );
+            const encDefaults = { tls: 587, ssl: 465, none: 25 };
+
+            const presets = {
+                fgr:        { host: 'vps017.server001.datenfalke.biz', port: 587, enc: 'tls' },
+                strato:     { host: 'smtp.strato.de',                  port: 465, enc: 'ssl' },
+                ionos:      { host: 'smtp.ionos.de',                   port: 587, enc: 'tls' },
+                '1und1':    { host: 'smtp.1und1.de',                   port: 587, enc: 'tls' },
+                hosteurope: { host: 'smtp.hosteurope.de',              port: 465, enc: 'ssl' },
+            };
 
             encRadios.forEach( function ( radio ) {
                 radio.addEventListener( 'change', function () {
-                    port.value = defaults[ this.value ];
+                    port.value = encDefaults[ this.value ];
                 } );
             } );
 
@@ -286,6 +311,17 @@ class FGR_SMTP_Settings {
                 radio.addEventListener( 'change', function () {
                     smtpFields.style.display = ( this.value === 'smtp' ) ? '' : 'none';
                 } );
+            } );
+
+            preset.addEventListener( 'change', function () {
+                const p = presets[ this.value ];
+                if ( ! p ) return;
+                host.value = p.host;
+                port.value = p.port;
+                encRadios.forEach( function ( radio ) {
+                    radio.checked = ( radio.value === p.enc );
+                } );
+                preset.value = '';
             } );
         } )();
         </script>
