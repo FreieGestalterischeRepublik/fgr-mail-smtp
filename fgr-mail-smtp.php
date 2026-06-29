@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.6.0
+ * Version:      1.7.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -297,12 +297,14 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
     function fgr_render_plugins_overview(): void {
         $plugins = [
             [
+                'slug' => 'fgr-mail-smtp',
                 'file' => 'fgr-mail-smtp/fgr-mail-smtp.php',
                 'name' => 'FGR Mail SMTP',
                 'desc' => 'E-Mails über SMTP oder Microsoft 365 versenden',
                 'page' => 'fgr-mail-smtp',
             ],
             [
+                'slug' => 'fgr-hide-login',
                 'file' => 'fgr-hide-login/fgr-hide-login.php',
                 'name' => 'FGR Hide Login',
                 'desc' => 'Login-URL individuell anpassen und schützen',
@@ -315,17 +317,115 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
             <p style="color:#888;margin-top:-8px">von der <em>Freien Gestalterischen Republik</em></p>
             <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:20px">
             <?php foreach ( $plugins as $p ) :
-                if ( ! is_plugin_active( $p['file'] ) ) continue;
+                $active    = is_plugin_active( $p['file'] );
+                $installed = file_exists( WP_PLUGIN_DIR . '/' . $p['file'] );
+                if ( $active ) {
+                    $badge = '<span style="color:#46b450;font-size:12px">&#9679; Aktiv</span>';
+                } elseif ( $installed ) {
+                    $badge = '<span style="color:#888;font-size:12px">&#9679; Inaktiv</span>';
+                } else {
+                    $badge = '<span style="color:#dc3545;font-size:12px">&#9679; Nicht installiert</span>';
+                }
             ?>
                 <div style="background:#fff;border:1px solid #ccd0d4;border-radius:4px;padding:20px 24px;min-width:240px;max-width:320px">
-                    <h2 style="margin-top:0"><?php echo esc_html( $p['name'] ); ?></h2>
-                    <p><?php echo esc_html( $p['desc'] ); ?></p>
-                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $p['page'] ) ); ?>" class="button button-primary">Einstellungen</a>
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">
+                        <h2 style="margin:0"><?php echo esc_html( $p['name'] ); ?></h2>
+                        <?php echo $badge; ?>
+                    </div>
+                    <p style="color:#555;margin-bottom:16px"><?php echo esc_html( $p['desc'] ); ?></p>
+                    <?php if ( $active ) : ?>
+                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $p['page'] ) ); ?>"
+                           class="button button-primary">Einstellungen</a>
+                    <?php elseif ( $installed ) : ?>
+                        <a href="<?php echo esc_url( wp_nonce_url(
+                            admin_url( 'plugins.php?action=activate&plugin=' . urlencode( $p['file'] ) ),
+                            'activate-plugin_' . $p['file']
+                        ) ); ?>" class="button button-primary">Aktivieren</a>
+                    <?php else : ?>
+                        <button type="button" class="button button-primary fgr-install-btn"
+                                data-slug="<?php echo esc_attr( $p['slug'] ); ?>">
+                            Installieren
+                        </button>
+                    <?php endif; ?>
                 </div>
             <?php endforeach; ?>
             </div>
         </div>
+        <script>
+        document.querySelectorAll( '.fgr-install-btn' ).forEach( function ( btn ) {
+            btn.addEventListener( 'click', function () {
+                var self = this;
+                self.disabled    = true;
+                self.textContent = 'Installiere…';
+                fetch( ajaxurl, {
+                    method: 'POST',
+                    body:   new URLSearchParams( {
+                        action:      'fgr_install_plugin',
+                        slug:        self.dataset.slug,
+                        _ajax_nonce: '<?php echo wp_create_nonce( 'fgr_install_plugin' ); ?>'
+                    } )
+                } )
+                .then( function ( r ) { return r.json(); } )
+                .then( function ( data ) {
+                    if ( data.success ) {
+                        location.reload();
+                    } else {
+                        alert( 'Fehler: ' + ( data.data || 'Unbekannter Fehler' ) );
+                        self.disabled    = false;
+                        self.textContent = 'Installieren';
+                    }
+                } )
+                .catch( function () {
+                    alert( 'Verbindungsfehler.' );
+                    self.disabled    = false;
+                    self.textContent = 'Installieren';
+                } );
+            } );
+        } );
+        </script>
         <?php
+    }
+
+    add_action( 'wp_ajax_fgr_install_plugin', 'fgr_install_plugin_handler' );
+
+    function fgr_install_plugin_handler(): void {
+        check_ajax_referer( 'fgr_install_plugin' );
+
+        if ( ! current_user_can( 'install_plugins' ) ) {
+            wp_send_json_error( 'Keine Berechtigung.' );
+        }
+
+        $slug    = sanitize_key( $_POST['slug'] ?? '' );
+        $allowed = [ 'fgr-mail-smtp', 'fgr-hide-login' ];
+
+        if ( ! in_array( $slug, $allowed, true ) ) {
+            wp_send_json_error( 'Unbekanntes Plugin.' );
+        }
+
+        require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+        require_once ABSPATH . 'wp-admin/includes/plugin.php';
+
+        // GitHub-Source-ZIP des main-Branches laden
+        $zip_url  = "https://github.com/FreieGestalterischeRepublik/{$slug}/archive/refs/heads/main.zip";
+        $skin     = new WP_Ajax_Upgrader_Skin();
+        $upgrader = new Plugin_Upgrader( $skin );
+        $result   = $upgrader->install( $zip_url );
+
+        if ( is_wp_error( $result ) ) {
+            wp_send_json_error( $result->get_error_message() );
+        }
+        if ( false === $result ) {
+            wp_send_json_error( 'Installation fehlgeschlagen. Bitte Dateisystem-Berechtigungen prüfen.' );
+        }
+
+        // GitHub-ZIP entpackt in "{slug}-main/" → zum korrekten Ordnernamen umbenennen
+        $wrong_dir   = WP_PLUGIN_DIR . '/' . $slug . '-main';
+        $correct_dir = WP_PLUGIN_DIR . '/' . $slug;
+        if ( is_dir( $wrong_dir ) && ! is_dir( $correct_dir ) ) {
+            rename( $wrong_dir, $correct_dir );
+        }
+
+        wp_send_json_success( [ 'message' => 'Plugin erfolgreich installiert.' ] );
     }
 }
 
