@@ -11,9 +11,10 @@ class FGR_SMTP_Settings {
     }
 
     public function add_menu(): void {
-        add_options_page(
+        add_submenu_page(
+            'fgr-plugins',
             'FGR Mail SMTP',
-            'FGR Mail SMTP',
+            'Mail SMTP',
             'manage_options',
             'fgr-mail-smtp',
             [ $this, 'render_page' ]
@@ -76,7 +77,7 @@ class FGR_SMTP_Settings {
         ] );
 
         set_transient( 'fgr_smtp_notice', 'saved', 30 );
-        wp_safe_redirect( admin_url( 'options-general.php?page=fgr-mail-smtp' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
         exit;
     }
 
@@ -89,7 +90,7 @@ class FGR_SMTP_Settings {
 
         if ( ! is_email( $to ) ) {
             set_transient( 'fgr_smtp_notice', 'test_invalid', 30 );
-            wp_safe_redirect( admin_url( 'options-general.php?page=fgr-mail-smtp' ) );
+            wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
             exit;
         }
 
@@ -111,7 +112,7 @@ class FGR_SMTP_Settings {
             set_transient( 'fgr_smtp_notice', 'test_err:' . $msg, 30 );
         }
 
-        wp_safe_redirect( admin_url( 'options-general.php?page=fgr-mail-smtp' ) );
+        wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
         exit;
     }
 

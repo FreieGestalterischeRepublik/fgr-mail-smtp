@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.5.0
+ * Version:      1.6.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -264,6 +264,69 @@ function fgr_ms365_send( $null, array $atts ): bool {
     $err_msg   = $resp_body['error']['message'] ?? "Microsoft Graph: HTTP {$code}";
     do_action( 'wp_mail_failed', new WP_Error( 'ms365_send', $err_msg ) );
     return false;
+}
+
+// ── Gemeinsamer FGR-Admin-Menüpunkt ──────────────────────────────────────────
+// function_exists-Guard verhindert Doppelung wenn mehrere FGR-Plugins aktiv sind
+
+if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
+
+    function fgr_register_admin_menu(): void {
+        add_menu_page(
+            'FGR Plugins',
+            'FGR Plugins',
+            'manage_options',
+            'fgr-plugins',
+            'fgr_render_plugins_overview',
+            'dashicons-shield',
+            65
+        );
+        // Den automatisch erzeugten doppelten "FGR Plugins"-Untermenüeintrag
+        // durch einen sauberen "Übersicht"-Eintrag ersetzen
+        add_submenu_page(
+            'fgr-plugins',
+            'FGR Plugins',
+            'Übersicht',
+            'manage_options',
+            'fgr-plugins',
+            'fgr_render_plugins_overview'
+        );
+    }
+    add_action( 'admin_menu', 'fgr_register_admin_menu', 5 );
+
+    function fgr_render_plugins_overview(): void {
+        $plugins = [
+            [
+                'file' => 'fgr-mail-smtp/fgr-mail-smtp.php',
+                'name' => 'FGR Mail SMTP',
+                'desc' => 'E-Mails über SMTP oder Microsoft 365 versenden',
+                'page' => 'fgr-mail-smtp',
+            ],
+            [
+                'file' => 'fgr-hide-login/fgr-hide-login.php',
+                'name' => 'FGR Hide Login',
+                'desc' => 'Login-URL individuell anpassen und schützen',
+                'page' => 'fgr-hide-login',
+            ],
+        ];
+        ?>
+        <div class="wrap">
+            <h1>FGR Plugins</h1>
+            <p style="color:#888;margin-top:-8px">von der <em>Freien Gestalterischen Republik</em></p>
+            <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:20px">
+            <?php foreach ( $plugins as $p ) :
+                if ( ! is_plugin_active( $p['file'] ) ) continue;
+            ?>
+                <div style="background:#fff;border:1px solid #ccd0d4;border-radius:4px;padding:20px 24px;min-width:240px;max-width:320px">
+                    <h2 style="margin-top:0"><?php echo esc_html( $p['name'] ); ?></h2>
+                    <p><?php echo esc_html( $p['desc'] ); ?></p>
+                    <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $p['page'] ) ); ?>" class="button button-primary">Einstellungen</a>
+                </div>
+            <?php endforeach; ?>
+            </div>
+        </div>
+        <?php
+    }
 }
 
 // ── Admin-Einstellungsseite ───────────────────────────────────────────────────
