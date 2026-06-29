@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.4.2
+ * Version:      1.5.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -21,6 +21,21 @@ $fgr_smtp_updater = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateCh
     'fgr-mail-smtp'
 );
 $fgr_smtp_updater->setBranch( 'main' );
+$fgr_smtp_updater->getVcsApi()->enableReleaseAssets();
+
+// Warnung wenn Plugin im falschen Ordner installiert ist (z. B. "fgr-mail-smtp-main")
+if ( is_admin() && str_ends_with( untrailingslashit( plugin_dir_path( __FILE__ ) ), '-main' ) ) {
+    add_action( 'admin_notices', function () {
+        $zip_url = 'https://github.com/FreieGestalterischeRepublik/fgr-mail-smtp/releases/latest';
+        echo '<div class="notice notice-error"><p>'
+            . '<strong>FGR Mail SMTP:</strong> Das Plugin ist im falschen Ordner installiert '
+            . '(<code>' . esc_html( basename( plugin_dir_path( __FILE__ ) ) ) . '</code>). '
+            . 'Bitte das Plugin <strong>deaktivieren → löschen → neu installieren</strong>. '
+            . 'Deine Einstellungen bleiben dabei erhalten. '
+            . '<a href="' . esc_url( $zip_url ) . '" target="_blank">ZIP herunterladen →</a>'
+            . '</p></div>';
+    } );
+}
 
 // Wert verschlüsseln — Schlüssel kommt aus der wp-config.php (AUTH_KEY)
 function fgr_smtp_encrypt( string $value ): string {
