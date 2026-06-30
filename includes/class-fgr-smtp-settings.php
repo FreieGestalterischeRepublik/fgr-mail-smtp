@@ -126,10 +126,10 @@ class FGR_SMTP_Settings {
 
         if ( 'saved' === $n ) {
             echo '<div class="notice notice-success is-dismissible"><p><strong>Einstellungen gespeichert.</strong></p></div>';
-        } elseif ( str_starts_with( $n, 'test_ok:' ) ) {
+        } elseif ( strpos( $n, 'test_ok:' ) === 0 ) {
             $to = esc_html( substr( $n, 8 ) );
             echo "<div class=\"notice notice-success is-dismissible\"><p><strong>Testmail erfolgreich an {$to} verschickt.</strong></p></div>";
-        } elseif ( str_starts_with( $n, 'test_err:' ) ) {
+        } elseif ( strpos( $n, 'test_err:' ) === 0 ) {
             $msg = esc_html( substr( $n, 9 ) );
             echo "<div class=\"notice notice-error is-dismissible\"><p><strong>Testmail fehlgeschlagen:</strong> {$msg}</p></div>";
         } elseif ( 'test_invalid' === $n ) {

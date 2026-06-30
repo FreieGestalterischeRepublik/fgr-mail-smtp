@@ -2,11 +2,11 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.8.0
+ * Version:      1.9.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
- * Requires PHP: 8.0
+ * Requires PHP: 7.4
  * Requires at least: 6.0
  * Text Domain:  fgr-mail-smtp
  */
@@ -24,7 +24,7 @@ $fgr_smtp_updater->setBranch( 'main' );
 $fgr_smtp_updater->getVcsApi()->enableReleaseAssets();
 
 // Warnung wenn Plugin im falschen Ordner installiert ist (z. B. "fgr-mail-smtp-main")
-if ( is_admin() && str_ends_with( untrailingslashit( plugin_dir_path( __FILE__ ) ), '-main' ) ) {
+if ( is_admin() && substr( untrailingslashit( plugin_dir_path( __FILE__ ) ), -5 ) === '-main' ) {
     add_action( 'admin_notices', function () {
         $zip_url = 'https://github.com/FreieGestalterischeRepublik/fgr-mail-smtp/releases/latest';
         echo '<div class="notice notice-error"><p>'
@@ -49,7 +49,7 @@ function fgr_smtp_encrypt( string $value ): string {
 // Wert entschlüsseln — "enc:"-Prefix erkennt verschlüsselte Werte
 function fgr_smtp_decrypt( string $value ): string {
     if ( '' === $value ) return '';
-    if ( ! str_starts_with( $value, 'enc:' ) ) return $value;
+    if ( strpos( $value, 'enc:' ) !== 0 ) return $value;
     $key    = substr( hash( 'sha256', AUTH_KEY . SECURE_AUTH_KEY ), 0, 32 );
     $raw    = base64_decode( substr( $value, 4 ) );
     $iv     = substr( $raw, 0, 16 );
@@ -116,7 +116,8 @@ if ( 'ms365' === $fgr_smtp_mode ) {
     add_filter( 'pre_wp_mail', 'fgr_ms365_send', 10, 2 );
 }
 
-function fgr_ms365_get_access_token(): string|WP_Error {
+// Rückgabetyp-Union (string|WP_Error) entfernt für PHP 7.4-Kompatibilität
+function fgr_ms365_get_access_token() {
     $cached = get_transient( 'fgr_ms365_token' );
     if ( $cached ) return $cached;
 
