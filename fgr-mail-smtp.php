@@ -7,7 +7,7 @@
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
  * Requires PHP: 7.4
- * Requires at least: 6.0
+ * Requires at least: 5.0
  * Text Domain:  fgr-mail-smtp
  */
 
