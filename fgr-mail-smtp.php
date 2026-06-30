@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.9.1
+ * Version:      1.9.2
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -22,6 +22,32 @@ $fgr_smtp_updater = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateCh
 );
 $fgr_smtp_updater->setBranch( 'main' );
 $fgr_smtp_updater->getVcsApi()->enableReleaseAssets();
+
+// "Details anzeigen" und "Nach Update suchen" erscheinen in der Pluginliste auch wenn ein Update verfügbar ist.
+// PUC überspringt "Details anzeigen" wenn WordPress einen slug in plugin_data setzt (passiert bei erkanntem Update).
+add_filter( 'plugin_row_meta', function ( array $links, string $plugin_file ): array {
+    if ( plugin_basename( __FILE__ ) !== $plugin_file || ! current_user_can( 'update_plugins' ) ) {
+        return $links;
+    }
+    $has_details = false;
+    $has_check   = false;
+    foreach ( $links as $link ) {
+        if ( strpos( $link, 'open-plugin-details-modal' ) !== false ) $has_details = true;
+        if ( strpos( $link, 'puc_check_for_updates' )     !== false ) $has_check   = true;
+    }
+    if ( ! $has_details ) {
+        $url     = network_admin_url( 'plugin-install.php?tab=plugin-information&plugin=fgr-mail-smtp&TB_iframe=true&width=600&height=550' );
+        $links[] = '<a href="' . esc_url( $url ) . '" class="thickbox open-plugin-details-modal">Details anzeigen</a>';
+    }
+    if ( ! $has_check ) {
+        $url     = wp_nonce_url(
+            add_query_arg( [ 'puc_check_for_updates' => 1, 'puc_slug' => 'fgr-mail-smtp' ], self_admin_url( 'plugins.php' ) ),
+            'puc_check_for_updates'
+        );
+        $links[] = '<a href="' . esc_url( $url ) . '">Nach Update suchen</a>';
+    }
+    return $links;
+}, 20, 2 );
 
 // Warnung wenn Plugin im falschen Ordner installiert ist (z. B. "fgr-mail-smtp-main")
 if ( is_admin() && substr( untrailingslashit( plugin_dir_path( __FILE__ ) ), -5 ) === '-main' ) {
