@@ -346,6 +346,7 @@ add_action( 'upgrader_process_complete', function ( $upgrader, array $hook_extra
         'fgr-mail-smtp/fgr-mail-smtp.php',
         'fgr-hide-login/fgr-hide-login.php',
         'fgr-maintenance/fgr-maintenance.php',
+        'fgr-email-encoder/fgr-email-encoder.php',
     ];
 
     $updated = array_merge(
@@ -411,6 +412,13 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
                 'name' => 'FGR Maintenance',
                 'desc' => 'Under-Construction- oder Wartungsseite anzeigen',
                 'page' => 'fgr-maintenance',
+            ],
+            [
+                'slug' => 'fgr-email-encoder',
+                'file' => 'fgr-email-encoder/fgr-email-encoder.php',
+                'name' => 'FGR Email Encoder',
+                'desc' => 'E-Mail-Adressen vor Spam-Bots schützen',
+                'page' => 'fgr-email-encoder',
             ],
         ];
         ?>
@@ -498,7 +506,7 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
         }
 
         $slug    = sanitize_key( $_POST['slug'] ?? '' );
-        $allowed = [ 'fgr-mail-smtp', 'fgr-hide-login', 'fgr-maintenance' ];
+        $allowed = [ 'fgr-mail-smtp', 'fgr-hide-login', 'fgr-maintenance', 'fgr-email-encoder' ];
 
         if ( ! in_array( $slug, $allowed, true ) ) {
             wp_send_json_error( 'Unbekanntes Plugin.' );
