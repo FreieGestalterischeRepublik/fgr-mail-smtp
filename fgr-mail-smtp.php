@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.9.2
+ * Version:      1.10.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -63,6 +63,44 @@ if ( is_admin() && substr( untrailingslashit( plugin_dir_path( __FILE__ ) ), -5 
     } );
 }
 
+// Multisite-Helfer: liest/schreibt Einstellungen netzwerkweit oder pro Site
+function fgr_smtp_get_option(): array {
+    return is_multisite() ? (array) get_site_option( 'fgr_smtp', [] ) : (array) get_option( 'fgr_smtp', [] );
+}
+function fgr_smtp_update_option( array $data ): void {
+    if ( is_multisite() ) {
+        update_site_option( 'fgr_smtp', $data );
+    } else {
+        update_option( 'fgr_smtp', $data );
+    }
+}
+function fgr_smtp_delete_option(): void {
+    if ( is_multisite() ) {
+        delete_site_option( 'fgr_smtp' );
+    } else {
+        delete_option( 'fgr_smtp' );
+    }
+}
+
+// Transient-Helfer: netzwerkweit auf Multisite, sonst pro Site
+function fgr_smtp_get_transient( string $key ) {
+    return is_multisite() ? get_site_transient( $key ) : get_transient( $key );
+}
+function fgr_smtp_set_transient( string $key, $value, int $expiration = 0 ): void {
+    if ( is_multisite() ) {
+        set_site_transient( $key, $value, $expiration );
+    } else {
+        set_transient( $key, $value, $expiration );
+    }
+}
+function fgr_smtp_delete_transient( string $key ): void {
+    if ( is_multisite() ) {
+        delete_site_transient( $key );
+    } else {
+        delete_transient( $key );
+    }
+}
+
 // Wert verschlüsseln — Schlüssel kommt aus der wp-config.php (AUTH_KEY)
 function fgr_smtp_encrypt( string $value ): string {
     if ( '' === $value ) return '';
@@ -83,20 +121,20 @@ function fgr_smtp_decrypt( string $value ): string {
     return openssl_decrypt( $cipher, 'AES-256-CBC', $key, 0, $iv ) ?: '';
 }
 
-$fgr_smtp_mode = get_option( 'fgr_smtp', [] )['mailer_mode'] ?? 'smtp';
+$fgr_smtp_mode = fgr_smtp_get_option()['mailer_mode'] ?? 'smtp';
 
 // ── SMTP-Modus ────────────────────────────────────────────────────────────────
 
 if ( 'smtp' === $fgr_smtp_mode ) {
 
     add_filter( 'wp_mail_from', function ( $default ) {
-        $opt = get_option( 'fgr_smtp', [] );
+        $opt = fgr_smtp_get_option();
         if ( ! empty( $opt['from_email'] ) ) return $opt['from_email'];
         return ( 'wordpress@localhost' === $default ) ? get_option( 'admin_email' ) : $default;
     } );
 
     add_filter( 'wp_mail_from_name', function ( $default ) {
-        $opt = get_option( 'fgr_smtp', [] );
+        $opt = fgr_smtp_get_option();
         return ! empty( $opt['from_name'] ) ? $opt['from_name'] : $default;
     } );
 
@@ -144,10 +182,10 @@ if ( 'ms365' === $fgr_smtp_mode ) {
 
 // Rückgabetyp-Union (string|WP_Error) entfernt für PHP 7.4-Kompatibilität
 function fgr_ms365_get_access_token() {
-    $cached = get_transient( 'fgr_ms365_token' );
+    $cached = fgr_smtp_get_transient( 'fgr_ms365_token' );
     if ( $cached ) return $cached;
 
-    $opt    = get_option( 'fgr_smtp', [] );
+    $opt    = fgr_smtp_get_option();
     $tenant = $opt['ms365_tenant'] ?? '';
     $app_id = $opt['ms365_app_id'] ?? '';
     $secret = fgr_smtp_decrypt( $opt['ms365_secret'] ?? '' );
@@ -180,13 +218,13 @@ function fgr_ms365_get_access_token() {
 
     // Token 60 Sekunden vor Ablauf erneuern
     $expires = max( 60, (int) ( $body['expires_in'] ?? 3600 ) - 60 );
-    set_transient( 'fgr_ms365_token', $body['access_token'], $expires );
+    fgr_smtp_set_transient( 'fgr_ms365_token', $body['access_token'], $expires );
 
     return $body['access_token'];
 }
 
 function fgr_ms365_send( $null, array $atts ): bool {
-    $opt        = get_option( 'fgr_smtp', [] );
+    $opt        = fgr_smtp_get_option();
     $from_email = ! empty( $opt['from_email'] ) ? $opt['from_email'] : get_option( 'admin_email' );
     $from_name  = ! empty( $opt['from_name'] )  ? $opt['from_name']  : get_bloginfo( 'name' );
 
@@ -388,7 +426,7 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
             'fgr_render_plugins_overview'
         );
     }
-    add_action( 'admin_menu', 'fgr_register_admin_menu', 5 );
+    add_action( is_multisite() ? 'network_admin_menu' : 'admin_menu', 'fgr_register_admin_menu', 5 );
 
     function fgr_render_plugins_overview(): void {
         $plugins = [
@@ -444,7 +482,7 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
                     </div>
                     <p style="color:#555;margin-bottom:16px"><?php echo esc_html( $p['desc'] ); ?></p>
                     <?php if ( $active ) : ?>
-                        <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $p['page'] ) ); ?>"
+                        <a href="<?php echo esc_url( is_multisite() ? network_admin_url( 'admin.php?page=' . $p['page'] ) : admin_url( 'admin.php?page=' . $p['page'] ) ); ?>"
                            class="button button-primary">Einstellungen</a>
                     <?php elseif ( $installed ) : ?>
                         <a href="<?php echo esc_url( wp_nonce_url(

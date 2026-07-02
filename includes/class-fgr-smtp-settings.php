@@ -4,10 +4,12 @@ defined( 'ABSPATH' ) || exit;
 class FGR_SMTP_Settings {
 
     public function __construct() {
-        add_action( 'admin_menu',    [ $this, 'add_menu' ] );
-        add_action( 'admin_init',    [ $this, 'handle_save' ] );
-        add_action( 'admin_init',    [ $this, 'handle_test_mail' ] );
-        add_action( 'admin_notices', [ $this, 'show_notices' ] );
+        $menu_hook   = is_multisite() ? 'network_admin_menu'    : 'admin_menu';
+        $notice_hook = is_multisite() ? 'network_admin_notices' : 'admin_notices';
+        add_action( $menu_hook,    [ $this, 'add_menu' ] );
+        add_action( 'admin_init',  [ $this, 'handle_save' ] );
+        add_action( 'admin_init',  [ $this, 'handle_test_mail' ] );
+        add_action( $notice_hook,  [ $this, 'show_notices' ] );
     }
 
     public function add_menu(): void {
@@ -36,7 +38,7 @@ class FGR_SMTP_Settings {
             $enc = 'tls';
         }
 
-        $existing = get_option( 'fgr_smtp', [] );
+        $existing = fgr_smtp_get_option();
 
         // SMTP-Passwort nur überschreiben wenn ein neues eingegeben wurde
         $new_pass   = $_POST['password'] ?? '';
@@ -59,10 +61,10 @@ class FGR_SMTP_Settings {
             ( $existing['ms365_app_id'] ?? '' ) !== $new_app_id ||
             '' !== $new_secret
         ) {
-            delete_transient( 'fgr_ms365_token' );
+            fgr_smtp_delete_transient( 'fgr_ms365_token' );
         }
 
-        update_option( 'fgr_smtp', [
+        fgr_smtp_update_option( [
             'mailer_mode'  => $mode,
             'host'         => sanitize_text_field( $_POST['host'] ?? '' ),
             'port'         => absint( $_POST['port'] ?? 587 ),
@@ -76,8 +78,8 @@ class FGR_SMTP_Settings {
             'ms365_secret' => $saved_ms365_secret,
         ] );
 
-        set_transient( 'fgr_smtp_notice', 'saved', 30 );
-        wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
+        fgr_smtp_set_transient( 'fgr_smtp_notice', 'saved', 30 );
+        wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
         exit;
     }
 
@@ -89,8 +91,8 @@ class FGR_SMTP_Settings {
         $to = sanitize_email( $_POST['test_email'] ?? '' );
 
         if ( ! is_email( $to ) ) {
-            set_transient( 'fgr_smtp_notice', 'test_invalid', 30 );
-            wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
+            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_invalid', 30 );
+            wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
             exit;
         }
 
@@ -106,13 +108,13 @@ class FGR_SMTP_Settings {
         );
 
         if ( $sent ) {
-            set_transient( 'fgr_smtp_notice', 'test_ok:' . $to, 30 );
+            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_ok:' . $to, 30 );
         } else {
             $msg = $last_error ?? 'Unbekannter Fehler – bitte Einstellungen prüfen.';
-            set_transient( 'fgr_smtp_notice', 'test_err:' . $msg, 30 );
+            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_err:' . $msg, 30 );
         }
 
-        wp_safe_redirect( admin_url( 'admin.php?page=fgr-mail-smtp' ) );
+        wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
         exit;
     }
 
@@ -120,9 +122,9 @@ class FGR_SMTP_Settings {
     public function show_notices(): void {
         if ( ( $_GET['page'] ?? '' ) !== 'fgr-mail-smtp' ) return;
 
-        $n = get_transient( 'fgr_smtp_notice' );
+        $n = fgr_smtp_get_transient( 'fgr_smtp_notice' );
         if ( ! $n ) return;
-        delete_transient( 'fgr_smtp_notice' );
+        fgr_smtp_delete_transient( 'fgr_smtp_notice' );
 
         if ( 'saved' === $n ) {
             echo '<div class="notice notice-success is-dismissible"><p><strong>Einstellungen gespeichert.</strong></p></div>';
@@ -141,7 +143,7 @@ class FGR_SMTP_Settings {
     public function render_page(): void {
         if ( ! current_user_can( 'manage_options' ) ) return;
 
-        $opt      = get_option( 'fgr_smtp', [] );
+        $opt      = fgr_smtp_get_option();
         $enc      = $opt['encryption'] ?? 'tls';
         $mode     = $opt['mailer_mode'] ?? 'smtp';
         $is_smtp  = ( 'smtp'  === $mode );
