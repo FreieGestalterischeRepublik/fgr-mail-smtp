@@ -193,6 +193,7 @@ class FGR_SMTP_Settings {
                                 <option value="ionos">IONOS</option>
                                 <option value="1und1">1&amp;1</option>
                                 <option value="hosteurope">HostEurope</option>
+                                <option value="hostinger">Hostinger</option>
                                 <option value="gmail">Gmail (App-Passwort)</option>
                                 <option value="ms365smtp">Microsoft 365 (SMTP AUTH)</option>
                             </select>
@@ -384,6 +385,7 @@ class FGR_SMTP_Settings {
                 ionos:      { host: 'smtp.ionos.de',                   port: 587, enc: 'tls' },
                 '1und1':    { host: 'smtp.1und1.de',                   port: 587, enc: 'tls' },
                 hosteurope: { host: 'smtp.hosteurope.de',              port: 465, enc: 'ssl' },
+                hostinger:  { host: 'smtp.hostinger.com',              port: 587, enc: 'tls' },
                 gmail:      { host: 'smtp.gmail.com',                  port: 587, enc: 'tls' },
                 ms365smtp:  { host: 'smtp.office365.com',             port: 587, enc: 'tls' },
             };
