@@ -385,6 +385,7 @@ add_action( 'upgrader_process_complete', function ( $upgrader, array $hook_extra
         'fgr-hide-login/fgr-hide-login.php',
         'fgr-maintenance/fgr-maintenance.php',
         'fgr-email-encoder/fgr-email-encoder.php',
+        'fgr-duplicate-post/fgr-duplicate-post.php',
     ];
 
     $updated = array_merge(
