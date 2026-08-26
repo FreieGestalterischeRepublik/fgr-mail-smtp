@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.11.1
+ * Version:      1.12.0
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -146,7 +146,24 @@ function fgr_smtp_configure_mailer( PHPMailer\PHPMailer\PHPMailer $mailer ): voi
     if ( empty( $opt['host'] ) ) return;
 
     $mailer->isSMTP();
-    $mailer->Host = $opt['host'];
+
+    // IPv4 erzwingen auf Dual-Stack-Servern: PHP bevorzugt sonst IPv6,
+    // das auf manchen Hosts (z. B. DigitalOcean) für Port 587 blockiert ist.
+    $hostname = $opt['host'];
+    if ( ! filter_var( $hostname, FILTER_VALIDATE_IP ) ) {
+        $ipv4 = gethostbyname( $hostname );
+        if ( $ipv4 !== $hostname && filter_var( $ipv4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+            $mailer->SMTPOptions = [
+                'ssl' => [
+                    'peer_name'        => $hostname,
+                    'verify_peer'      => true,
+                    'verify_peer_name' => true,
+                ],
+            ];
+            $hostname = $ipv4;
+        }
+    }
+    $mailer->Host = $hostname;
     $mailer->Port = ! empty( $opt['port'] ) ? absint( $opt['port'] ) : 587;
 
     $enc = $opt['encryption'] ?? 'tls';
