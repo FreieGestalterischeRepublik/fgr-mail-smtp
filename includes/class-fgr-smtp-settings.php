@@ -88,6 +88,14 @@ class FGR_SMTP_Settings {
         if ( ! isset( $_POST['fgr_smtp_test'] ) ) return;
         check_admin_referer( 'fgr_smtp_test', 'fgr_smtp_test_nonce' );
 
+        $rl_key = 'fgr_smtp_test_rl_' . get_current_user_id();
+        if ( fgr_smtp_get_transient( $rl_key ) ) {
+            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_ratelimited', 30 );
+            wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
+            exit;
+        }
+        fgr_smtp_set_transient( $rl_key, 1, 60 );
+
         $to = sanitize_email( $_POST['test_email'] ?? '' );
 
         if ( ! is_email( $to ) ) {
@@ -110,8 +118,12 @@ class FGR_SMTP_Settings {
         if ( $sent ) {
             fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_ok:' . $to, 30 );
         } else {
-            $msg = $last_error ?? 'Unbekannter Fehler – bitte Einstellungen prüfen.';
-            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_err:' . $msg, 30 );
+            // Volle SMTP-Fehlermeldung nur ins PHP-Error-Log schreiben (kann Server-Interna
+            // enthalten) — in der Admin-Oberfläche nur eine generalisierte Meldung anzeigen.
+            if ( $last_error ) {
+                error_log( 'FGR Mail SMTP Testmail-Fehler: ' . $last_error );
+            }
+            fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_err', 30 );
         }
 
         wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
@@ -131,11 +143,12 @@ class FGR_SMTP_Settings {
         } elseif ( strpos( $n, 'test_ok:' ) === 0 ) {
             $to = esc_html( substr( $n, 8 ) );
             echo "<div class=\"notice notice-success is-dismissible\"><p><strong>Testmail erfolgreich an {$to} verschickt.</strong></p></div>";
-        } elseif ( strpos( $n, 'test_err:' ) === 0 ) {
-            $msg = esc_html( substr( $n, 9 ) );
-            echo "<div class=\"notice notice-error is-dismissible\"><p><strong>Testmail fehlgeschlagen:</strong> {$msg}</p></div>";
+        } elseif ( 'test_err' === $n ) {
+            echo '<div class="notice notice-error is-dismissible"><p><strong>Testmail fehlgeschlagen.</strong> Details siehe PHP-Error-Log des Servers.</p></div>';
         } elseif ( 'test_invalid' === $n ) {
             echo '<div class="notice notice-error is-dismissible"><p><strong>Ungültige E-Mail-Adresse.</strong></p></div>';
+        } elseif ( 'test_ratelimited' === $n ) {
+            echo '<div class="notice notice-error is-dismissible"><p><strong>Bitte warte kurz.</strong> Testmails sind auf 1 pro Minute begrenzt.</p></div>';
         }
     }
 
