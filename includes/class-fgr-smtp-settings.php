@@ -71,7 +71,7 @@ class FGR_SMTP_Settings {
             'encryption'   => $enc,
             'username'     => sanitize_text_field( $_POST['username'] ?? '' ),
             'password'     => $saved_pass,
-            'from_email'   => sanitize_email( $_POST['from_email'] ?? '' ),
+            'from_email'   => fgr_smtp_sanitize_email( $_POST['from_email'] ?? '' ),
             'from_name'    => sanitize_text_field( $_POST['from_name'] ?? '' ),
             'ms365_tenant' => $new_tenant,
             'ms365_app_id' => $new_app_id,
@@ -96,9 +96,9 @@ class FGR_SMTP_Settings {
         }
         fgr_smtp_set_transient( $rl_key, 1, 60 );
 
-        $to = sanitize_email( $_POST['test_email'] ?? '' );
+        $to = fgr_smtp_sanitize_email( $_POST['test_email'] ?? '' );
 
-        if ( ! is_email( $to ) ) {
+        if ( '' === $to ) {
             fgr_smtp_set_transient( 'fgr_smtp_notice', 'test_invalid', 30 );
             wp_safe_redirect( is_multisite() ? network_admin_url( 'admin.php?page=fgr-mail-smtp' ) : admin_url( 'admin.php?page=fgr-mail-smtp' ) );
             exit;

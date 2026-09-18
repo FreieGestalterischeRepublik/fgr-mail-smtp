@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.12.1
+ * Version:      1.12.2
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -119,6 +119,29 @@ function fgr_smtp_decrypt( string $value ): string {
     $iv     = substr( $raw, 0, 16 );
     $cipher = substr( $raw, 16 );
     return openssl_decrypt( $cipher, 'AES-256-CBC', $key, 0, $iv ) ?: '';
+}
+
+// E-Mail-Adresse validieren, dabei Domains mit Umlauten (IDN) in Punycode umwandeln.
+// WordPress' sanitize_email()/is_email() entfernen Umlaute sonst stillschweigend statt
+// sie korrekt zu kodieren — SMTP-Server verstehen nur ASCII-Domains
+// (z. B. "büro.de" wird zu "xn--bro-loa.de").
+function fgr_smtp_sanitize_email( string $email ): string {
+    $email = trim( $email );
+    $at    = strrpos( $email, '@' );
+    if ( false === $at ) return '';
+
+    $local  = substr( $email, 0, $at );
+    $domain = substr( $email, $at + 1 );
+
+    if ( function_exists( 'idn_to_ascii' ) && preg_match( '/[^\x00-\x7F]/', $domain ) ) {
+        $ascii_domain = idn_to_ascii( $domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46 );
+        if ( false !== $ascii_domain ) {
+            $domain = $ascii_domain;
+        }
+    }
+
+    $email = $local . '@' . $domain;
+    return is_email( $email ) ? $email : '';
 }
 
 $fgr_smtp_mode = fgr_smtp_get_option()['mailer_mode'] ?? 'smtp';
