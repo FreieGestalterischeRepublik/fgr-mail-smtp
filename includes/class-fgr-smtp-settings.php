@@ -69,7 +69,7 @@ class FGR_SMTP_Settings {
             'host'         => sanitize_text_field( $_POST['host'] ?? '' ),
             'port'         => absint( $_POST['port'] ?? 587 ),
             'encryption'   => $enc,
-            'username'     => fgr_smtp_idn_encode( sanitize_text_field( $_POST['username'] ?? '' ) ),
+            'username'     => sanitize_text_field( $_POST['username'] ?? '' ),
             'password'     => $saved_pass,
             'from_email'   => fgr_smtp_sanitize_email( $_POST['from_email'] ?? '' ),
             'from_name'    => sanitize_text_field( $_POST['from_name'] ?? '' ),

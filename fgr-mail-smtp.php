@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.12.3
+ * Version:      1.12.4
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -122,9 +122,11 @@ function fgr_smtp_decrypt( string $value ): string {
 }
 
 // Wandelt bei einer @-Adresse eine Domain mit Umlauten (IDN) in Punycode um, ohne den
-// Wert als E-Mail-Adresse zu validieren — u. a. für den SMTP-Benutzernamen nötig, der
-// zwar oft eine E-Mail-Adresse ist, aber kein gültiges E-Mail-Format haben muss.
-// SMTP-Server verstehen nur ASCII-Domains (z. B. wird "büro.de" zu "xn--bro-loa.de").
+// Wert als E-Mail-Adresse zu validieren. Wird nur für den SMTP-Benutzernamen gebraucht:
+// PHPMailer kodiert Absender-/Empfängeradressen beim Versand selbst automatisch in
+// Punycode (siehe punyencodeAddress() in PHPMailer.php), den Login-Benutzernamen aber
+// nicht — der wird unverändert an den Server geschickt und muss daher hier manuell
+// umgewandelt werden, sonst schlägt die SMTP-Authentifizierung fehl.
 function fgr_smtp_idn_encode( string $value ): string {
     $value = trim( $value );
     $at    = strrpos( $value, '@' );
@@ -143,12 +145,13 @@ function fgr_smtp_idn_encode( string $value ): string {
     return $local . '@' . $domain;
 }
 
-// E-Mail-Adresse validieren, dabei Domain wie oben in Punycode umwandeln.
-// WordPress' sanitize_email()/is_email() entfernen Umlaute sonst stillschweigend statt
-// sie korrekt zu kodieren.
+// E-Mail-Adresse validieren — akzeptiert dabei auch Domains mit Umlauten (IDN), die
+// WordPress' is_email() sonst wegen seiner reinen ASCII-Prüfung ablehnen würde. Die
+// Adresse selbst bleibt beim Speichern unverändert (schöne Schreibweise bleibt in den
+// Einstellungen erhalten) — PHPMailer wandelt sie beim Versand bei Bedarf automatisch um.
 function fgr_smtp_sanitize_email( string $email ): string {
-    $email = fgr_smtp_idn_encode( $email );
-    return is_email( $email ) ? $email : '';
+    $email = trim( $email );
+    return is_email( fgr_smtp_idn_encode( $email ) ) ? $email : '';
 }
 
 $fgr_smtp_mode = fgr_smtp_get_option()['mailer_mode'] ?? 'smtp';
@@ -208,7 +211,7 @@ function fgr_smtp_configure_mailer( PHPMailer\PHPMailer\PHPMailer $mailer ): voi
 
     if ( ! empty( $opt['username'] ) ) {
         $mailer->SMTPAuth = true;
-        $mailer->Username = $opt['username'];
+        $mailer->Username = fgr_smtp_idn_encode( $opt['username'] );
         $mailer->Password = fgr_smtp_decrypt( $opt['password'] ?? '' );
     } else {
         $mailer->SMTPAuth = false;
