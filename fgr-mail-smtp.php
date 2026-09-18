@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.12.2
+ * Version:      1.12.3
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -121,17 +121,17 @@ function fgr_smtp_decrypt( string $value ): string {
     return openssl_decrypt( $cipher, 'AES-256-CBC', $key, 0, $iv ) ?: '';
 }
 
-// E-Mail-Adresse validieren, dabei Domains mit Umlauten (IDN) in Punycode umwandeln.
-// WordPress' sanitize_email()/is_email() entfernen Umlaute sonst stillschweigend statt
-// sie korrekt zu kodieren — SMTP-Server verstehen nur ASCII-Domains
-// (z. B. "büro.de" wird zu "xn--bro-loa.de").
-function fgr_smtp_sanitize_email( string $email ): string {
-    $email = trim( $email );
-    $at    = strrpos( $email, '@' );
-    if ( false === $at ) return '';
+// Wandelt bei einer @-Adresse eine Domain mit Umlauten (IDN) in Punycode um, ohne den
+// Wert als E-Mail-Adresse zu validieren — u. a. für den SMTP-Benutzernamen nötig, der
+// zwar oft eine E-Mail-Adresse ist, aber kein gültiges E-Mail-Format haben muss.
+// SMTP-Server verstehen nur ASCII-Domains (z. B. wird "büro.de" zu "xn--bro-loa.de").
+function fgr_smtp_idn_encode( string $value ): string {
+    $value = trim( $value );
+    $at    = strrpos( $value, '@' );
+    if ( false === $at ) return $value;
 
-    $local  = substr( $email, 0, $at );
-    $domain = substr( $email, $at + 1 );
+    $local  = substr( $value, 0, $at );
+    $domain = substr( $value, $at + 1 );
 
     if ( function_exists( 'idn_to_ascii' ) && preg_match( '/[^\x00-\x7F]/', $domain ) ) {
         $ascii_domain = idn_to_ascii( $domain, IDNA_DEFAULT, INTL_IDNA_VARIANT_UTS46 );
@@ -140,7 +140,14 @@ function fgr_smtp_sanitize_email( string $email ): string {
         }
     }
 
-    $email = $local . '@' . $domain;
+    return $local . '@' . $domain;
+}
+
+// E-Mail-Adresse validieren, dabei Domain wie oben in Punycode umwandeln.
+// WordPress' sanitize_email()/is_email() entfernen Umlaute sonst stillschweigend statt
+// sie korrekt zu kodieren.
+function fgr_smtp_sanitize_email( string $email ): string {
+    $email = fgr_smtp_idn_encode( $email );
     return is_email( $email ) ? $email : '';
 }
 
