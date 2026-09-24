@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.12.4
+ * Version:      1.12.5
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -13,15 +13,23 @@
 
 defined( 'ABSPATH' ) || exit;
 
-// Update-Checker: prüft GitHub auf neue Versionen
+// Update-Checker: fragt die zentrale FGR-Update-API ab (nicht direkt GitHub,
+// wegen des GitHub-API-Rate-Limits bei vielen Kundenseiten auf derselben IP).
 require_once plugin_dir_path( __FILE__ ) . 'lib/plugin-update-checker/plugin-update-checker.php';
 $fgr_smtp_updater = YahnisElsts\PluginUpdateChecker\v5\PucFactory::buildUpdateChecker(
-    'https://github.com/FreieGestalterischeRepublik/fgr-mail-smtp/',
+    'https://fgr-plugins-api.fgr.design/fgr-mail-smtp.json',
     __FILE__,
     'fgr-mail-smtp'
 );
-$fgr_smtp_updater->setBranch( 'main' );
-$fgr_smtp_updater->getVcsApi()->enableReleaseAssets();
+
+// Auto-Update: WordPress' täglicher Update-Cron installiert neue Versionen
+// dieses Plugins automatisch, kein manueller Klick auf jeder Seite nötig.
+add_filter( 'auto_update_plugin', function ( $update, $item ) {
+    if ( isset( $item->slug ) && $item->slug === 'fgr-mail-smtp' ) {
+        return true;
+    }
+    return $update;
+}, 10, 2 );
 
 // "Details anzeigen" und "Nach Update suchen" erscheinen in der Pluginliste auch wenn ein Update verfügbar ist.
 // PUC überspringt "Details anzeigen" wenn WordPress einen slug in plugin_data setzt (passiert bei erkanntem Update).
