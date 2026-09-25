@@ -2,7 +2,7 @@
 /**
  * Plugin Name:  FGR Mail SMTP
  * Description:  Ein Plugin der Freien Gestalterischen Republik. Ersetzt den Standard-WordPress-Mailer und sendet alle ausgehenden E-Mails zuverlässig über einen eigenen SMTP-Mailserver. Unterstützt TLS- und SSL-Verschlüsselung, SMTP-Authentifizierung sowie benutzerdefinierte Absenderangaben – alles bequem über das WordPress-Backend konfigurierbar.
- * Version:      1.12.5
+ * Version:      1.12.6
  * Author:       Freie Gestalterische Republik
  * Author URI:   https://fgr.design
  * License:      GPL-2.0-or-later
@@ -499,7 +499,13 @@ if ( ! function_exists( 'fgr_register_admin_menu' ) ) {
             'fgr_render_plugins_overview'
         );
     }
-    add_action( is_multisite() ? 'network_admin_menu' : 'admin_menu', 'fgr_register_admin_menu', 5 );
+    // Erscheint bei Multisite an beiden Stellen: pro Einzelseite (für Plugins mit
+    // seitenspezifischen Einstellungen wie Hide Login) und in der Netzwerkverwaltung
+    // (für netzwerkweite Plugins wie Mail SMTP).
+    add_action( 'admin_menu', 'fgr_register_admin_menu', 5 );
+    if ( is_multisite() ) {
+        add_action( 'network_admin_menu', 'fgr_register_admin_menu', 5 );
+    }
 
     function fgr_render_plugins_overview(): void {
         $plugins = [
